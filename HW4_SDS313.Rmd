@@ -1,0 +1,218 @@
+---
+title: "SDS315 Homework 4"
+author: "Nidhi Ilanthalaivan (ni2649) - SDS 315 UT Austin"
+date: "https://github.com/nidhi-ilanthalaivan/SDS-315/tree/main"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+library(mosaic)
+library(tidyverse)
+library(forcats)
+library(stringr)
+library(lubridate)
+library(readr)
+library(tidyr)
+library(kableExtra)
+
+```
+# **Question 1**
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+sim_SEC <- do(100000) * nflip(n = 2021, prob = 0.024)
+
+library(ggplot2)
+ggplot(sim_SEC) + 
+  geom_histogram(aes(x = nflip), binwidth = 1, fill="purple", color="black") +
+  labs(
+    title = "Histogram of SEC Simulations",
+    x = "Number of Flips",
+    y = "Frequency"
+  )
+
+sum(sim_SEC >= 70)
+```
+
+The null hypothesis assumes that Iron Bank employees are flagged at the same 2.4% baseline rate as other traders. The test statistic is the number of flagged trades among 2021 trades made by Iron Bank employees. To evaluate this, we conducted a Monte Carlo simulation with 100,000 iterations, yielding a p-value of 0.00171. Since this value is significantly lower than the conventional 0.05 threshold, the observed data contradicts the null hypothesis. This indicates that Iron Bank employees are flagged at a much higher rate than expected by chance, providing strong statistical evidence that their trading behavior differs from the norm. As a result, the SEC’s investigation appears justified.
+
+\newpage
+
+# **Question 2**
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+sim_Inspections = do(100000) * nflip(n=50, prob=0.030)
+
+ggplot(sim_Inspections) + 
+  geom_histogram(aes(x=nflip), binwidth=1, fill="skyblue", color="black") +
+  labs(title="Distribution of Health Code Violations in 50 Inspections",
+       x="Number of Violations",
+       y="Frequency") +
+  theme_minimal()
+
+sum(sim_Inspections$nflip >= 8)
+
+
+```
+The null hypothesis is that the rate of health code violations at Gourmet Bites is the same as the citywide average of 3%. The test statistic, which is the number of violations out of 50 inspections at Gourmet Bites locations, was evaluated using a Monte Carlo simulation with 100,000 trials. The resulting p-value was 0.0001, which is extremely small. This suggests that the observed data is highly inconsistent with the null hypothesis, meaning that Gourmet Bites is experiencing a significantly higher number of health code violations than would be expected by random chance. Given this strong evidence, the Health Department should consider further investigation or intervention.
+
+\newpage
+
+# **Question 3**
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+observed <- c(85, 56, 59, 27, 13)
+
+total_jurors <- sum(observed)
+
+expected_proportions <- c(0.30, 0.25, 0.20, 0.15, 0.10)
+
+expected <- total_jurors * expected_proportions
+
+chisq_test <- chisq.test(observed, p = expected_proportions, rescale.p = TRUE)
+
+chisq_test
+
+
+
+```
+Our null hypothesis is that the racial and ethnic composition of jurors empaneled by the judge matches the distribution of the county’s eligible jury population. Using a chi-square test, we compared the observed jury distribution with the expected distribution based on county demographics. The chi-square statistic was 12.426, and the p-value was 0.0144. Since the p-value is less than 0.05, we reject the null hypothesis, indicating that the empaneled jurors’ distribution significantly differs from the county’s eligible jury pool. This suggests the possibility of systematic bias in jury selection under this judge. The observed disparity in jury composition could stem from biases in the selection process, differences in hardship exemptions, or variations in the summoned jury pool. Further investigation is warranted to explore factors such as past jury selections, the use of peremptory challenges, and whether certain groups are more frequently excused.
+
+\newpage
+
+# **Question 4**
+
+### **Part A**
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+
+sentences <- readLines("brown_sentences.txt")
+
+expected_freq <- c(
+  A = 0.08167, B = 0.01492, C = 0.02782, D = 0.04253, E = 0.12702, F = 0.02228, 
+  G = 0.02015, H = 0.06094, I = 0.06966, J = 0.00153, K = 0.00772, L = 0.04025, 
+  M = 0.02406, N = 0.06749, O = 0.07507, P = 0.01929, Q = 0.00095, R = 0.05987, 
+  S = 0.06327, T = 0.09056, U = 0.02758, V = 0.00978, W = 0.02360, X = 0.00150, 
+  Y = 0.01974, Z = 0.00074
+)
+
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+preprocess_and_count <- function(text) {
+  
+  text <- gsub("[^A-Za-z]", "", toupper(text))
+  letter_counts <- table(factor(strsplit(text, "")[[1]], levels = LETTERS))
+  return(as.vector(letter_counts))
+}
+
+
+calculate_chi_squared <- function(observed, expected) {
+  chi_squared <- sum((observed - expected)^2 / expected)
+  return(chi_squared)
+}
+
+
+chi_squared_stats <- numeric(length(sentences))
+
+
+for (i in seq_along(sentences)) {
+
+  observed_counts <- preprocess_and_count(sentences[i])
+  
+  
+  sentence_length <- sum(observed_counts)
+  
+  
+  if (sentence_length == 0) next
+  
+  
+  expected_counts <- expected_freq * sentence_length
+  
+  
+  chi_squared_stats[i] <- calculate_chi_squared(observed_counts, expected_counts)
+}
+
+
+chi_squared_stats <- chi_squared_stats[!is.na(chi_squared_stats)]
+
+
+hist(chi_squared_stats, breaks = 50, main = "Distribution of Chi-Squared Statistics", 
+     xlab = "Chi-Squared Statistic", col = "lightblue", border = "white")
+
+
+summary(chi_squared_stats)
+
+
+```
+
+\newpage
+
+
+### **Part B**
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+newsentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+calculate_p_value <- function(observed_counts, expected_counts) {
+  chi_squared_stat <- sum((observed_counts - expected_counts)^2 / expected_counts)
+  p_value <- 1 - pchisq(chi_squared_stat, df = length(observed_counts) - 1)
+  return(p_value)
+}
+
+p_values <- numeric(length(newsentences))
+chi_squared_stats <- numeric(length(newsentences))
+
+for (i in seq_along(newsentences)) {
+  observed_counts <- preprocess_and_count(newsentences[i])
+  
+  sentence_length <- sum(observed_counts)
+  expected_counts <- expected_freq * sentence_length
+  
+  chi_squared_stat <- sum((observed_counts - expected_counts)^2 / expected_counts)
+  chi_squared_stats[i] <- chi_squared_stat
+  
+  p_values[i] <- calculate_p_value(observed_counts, expected_counts)
+}
+
+
+p_values_df <- data.frame(Sentence = newsentences, P_Value = round(p_values, 3))
+
+kable(p_values_df, format = "markdown", col.names = c("Sentence", "P-Value"), caption = "P-Values for Each Sentence")
+
+
+
+```
+
+Based on the analysis of the given sentences, the one most likely produced by an LLM with watermarking is
+
+*"Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland."*
+
+This sentence stands out for several reasons, including its unusual word choices and sentence structure, which are indicative of subtle manipulation often seen in AI-generated text. Additionally, the chi-squared test yielded the lowest p-value of 0.000 for this sentence, suggesting a significant deviation from the expected letter frequency distribution of typical English sentences. This low p-value indicates that the letter distribution in this sentence is far more likely to be the result of watermarking, a method used to subtly alter the text’s frequency characteristics to distinguish AI-generated content.
+
+\newpage
