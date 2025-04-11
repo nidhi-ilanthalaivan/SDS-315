@@ -1,0 +1,171 @@
+---
+title: "SDS315 Homework 8"
+author: "Nidhi Ilanthalaivan (ni2649) - SDS 315 UT Austin"
+date: "https://github.com/nidhi-ilanthalaivan/SDS-315/tree/main"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(boot)
+
+```
+# Problem 1: regression warm up
+
+## A) What creatine clearance rate should we expect for a 55-year-old?
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+setwd("/Users/nidhi/Downloads/")
+creatine <- read.csv("creatinine.csv")
+model <- lm(creatclear ~ age, data = creatine)
+summary(model)
+
+
+
+```
+**Regression Equation: 147.813 + (-0.61982 x age)**
+
+## A) What creatine clearance rate should we expect for a 55-year-old?
+
+creatclear = 147.813 + (-0.61982 x 55)
+creatclear = 147.813 - 34.0901 = 113.72 mL/min
+
+I plugged age = 55 into the regression equaton to predict the expected creatine clearance rate.
+
+## B) How does creatine clearance rate change with age
+
+The slope is **-0.61982 mL/min** per year. The slope of the regression line tells us that for each additional year of age, creatine clearance decreased by approximately 0.62 mL/min. 
+
+## C) Whose creatine clearance rate is healthier (higher) for their age: a 40-year-old with a rate of 60-year-old with a rate of 112? 
+
+40-year-old with observed clearance of 135:
+creatclear of 40 = 147.813 + (- 0.61982 x 40) 
+creatclear of 40 = 147.813 - 24.7928 = 123.0202
+residual of 40 = 135 - 123.0202 ~ **11.98**
+
+60-year-old with observed clearance of 112:
+creatclear of 60 = 147.813 + (-0.61982 x 60) 
+creatclear of 60 = 147.813 - 37.1892 = 110.6238
+residual of 60 = 112 - 110.6238 = **1.38**
+
+To determine who is healthier for their age, we compare each person's creatinine clearance rate to what would be expected based on their age using the regression model:
+
+For a 40-year-old, the predicted clearance rate is 123.02 mL/min, and for a 60-year-old, it is 110.62 mL/min. The actual clearance values are 135 and 112, respectively. We calculate residuals by subtracting the predicted value from the actual value. The 40-year-old has a residual of 135 − 123.02 = 11.98, while the 60-year-old has a residual of 112 − 110.62 = 1.38. Since the 40-year-old has a larger positive residual, they are performing much better than expected for their age. **Therefore, the 40-year-old is healthier relative to their age group.**
+
+# Problem 2: Modeling disease growth
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+covid <- read.csv("covid.csv")
+
+# Log-transform deaths
+covid <- covid %>%
+  filter(deaths > 0) %>%
+  mutate(log_deaths = log(deaths))
+
+# Separate by country
+italy <- filter(covid, country == "Italy")
+spain <- filter(covid, country == "Spain")
+
+# Fit linear models on log scale
+fit_italy <- lm(log_deaths ~ days_since_first_death, data = italy)
+fit_spain <- lm(log_deaths ~ days_since_first_death, data = spain)
+
+summary(fit_italy)
+summary(fit_spain)
+
+
+```
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+b_italy <- coef(fit_italy)[2]
+b_spain <- coef(fit_spain)[2]
+
+dt_italy <- log(2) / b_italy
+dt_spain <- log(2) / b_spain
+
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+boot_growth <- function(data, indices) {
+  d <- data[indices, ]
+  model <- lm(log_deaths ~ days_since_first_death, data = d)
+  coef(model)[2]  
+}
+
+#italy
+set.seed(123)
+boot_italy <- boot(italy, boot_growth, R = 1000)
+boot.ci(boot_italy, type = "perc")
+
+#spain
+set.seed(123)
+boot_spain <- boot(spain, boot_growth, R = 1000)
+boot.ci(boot_spain, type = "perc")
+
+dt_italy_boot <- log(2) / boot_italy$t
+dt_spain_boot <- log(2) / boot_spain$t
+quantile(dt_italy_boot, c(0.025, 0.975))
+quantile(dt_spain_boot, c(0.025, 0.975))
+
+
+
+
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(covid, aes(x = days_since_first_death, y = deaths, color = country)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Daily COVID-19 Deaths Over Time",
+    x = "Days Since First Death",
+    y = "Deaths per Day",
+    color = "Country"
+  ) +
+  theme_minimal()
+
+```
+
+To investigate early pandemic dynamics, we modeled COVID-19 deaths in Italy and Spain using exponential growth models. Specifically, we regressed the log of daily death counts on the number of days since each country’s first reported death.
+
+For Italy, the estimated daily growth rate was 0.183 (SE = 0.0103), with a 95% bootstrap confidence interval of (0.158, 0.208). This implies that daily deaths were increasing by approximately 18.3% each day. The corresponding doubling time was 3.8 days, with a 95% CI of (3.33, 4.38). The model explained 89.5% of the variance in log deaths (R squared = 0.895), and the growth rate was highly statistically significant (p < 0.001).
+
+In Spain, the estimated daily growth rate was even higher at 0.276 (SE = 0.0191), with a 95% bootstrap confidence interval of (0.233, 0.320). This translates to a faster doubling time of 2.5 days, with a 95% CI of (2.17, 2.97). The model fit was similarly strong (R squared = 0.889), and again the growth rate was highly significant (p < 0.001).
+
+These results confirm that during the early stages of the outbreak, both countries experienced rapid exponential increases in deaths. Spain’s faster growth rate and shorter doubling time highlight a more aggressive trajectory. These findings emphasize the importance of early intervention during pandemic outbreaks.
+
+
+# Problem 3: price elasticity of demand
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+milk <- read_csv('milk.csv')
+milk <- milk %>%
+  mutate(log_price = log(price),
+         log_sales = log(sales))
+model <- lm(log_sales ~ log_price, data = milk)
+summary(model)
+
+```
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+boot_fun <- function(data, indices) {
+  sample_data <- data[indices, ]
+  coef(lm(log_sales ~ log_price, data = sample_data))[2]
+}
+
+set.seed(123)
+boot_out <- boot(data = milk, statistic = boot_fun, R = 1000)
+
+boot.ci(boot_out, type = "perc")
+
+
+```
+To estimate the price elasticity of demand for milk, I used a log-log regression based on the model Q = K*P^B, which linearizes to log(Q) = log(K) + Blog(P). I regressed log(sales) on log(price) using data from the stated preference study. The estimated price elasticity of demand(B) is -1.62. This essentially means that a 1% increase in the price of milk leads to an approximate 1.62% decrease in quantity demanded. I then bootstrapped the regression 1000 times to construct a 95% confidence interval. The resulting 95% percentile-based confidence interval is (-1.77, -1.44), meaning that demand is elastic within this range.
+
